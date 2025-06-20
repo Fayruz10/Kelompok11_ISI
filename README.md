@@ -40,13 +40,13 @@ Dosen Pengampu: Ahmad Radhy, S.Si., M.Si
 
 ---
 
-
 ## Tutorial Setup Program
 
 ---
 
-## Tutorial Setup Program Controller
-
+## Lampiran 
+- Laporan :
+  
 ---
 
 ##  Saran untuk Pengembangan Selanjutnya
