@@ -1,4 +1,4 @@
-# UMKM:Sistem Monitoring Data Penjualan Terintegrasi dengan InfluxDB, Grafana, dan Teknologi Blockchain guna Mendukung UMKM Toko Sembako
+# UMKM:Sistem Cerdas Monitoring Penjualan UMKM Toko Sembako dengan Teknologi Terintegrasi
 
 ---
 
