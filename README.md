@@ -44,5 +44,5 @@ Dosen Pengampu: Ahmad Radhy, S.Si., M.Si
 ---
 
 ## Lampiran 
-- Laporan :
+- Laporan : https://docs.google.com/document/d/1PTd5ZhZgaVm_o83zzjPHrzIq7BMuV4fg/edit?usp=sharing&ouid=100957104095794367879&rtpof=true&sd=true
 - PPT : https://drive.google.com/file/d/1aiJ9KzhIdnAX1EO-hL90LeaJEwvT1nqa/view?usp=sharing
