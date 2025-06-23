@@ -45,4 +45,4 @@ Dosen Pengampu: Ahmad Radhy, S.Si., M.Si
 
 ## Lampiran 
 - Laporan :
-- PPT :
+- PPT : https://drive.google.com/file/d/1aiJ9KzhIdnAX1EO-hL90LeaJEwvT1nqa/view?usp=sharing
