@@ -37,18 +37,12 @@ Dosen Pengampu: Ahmad Radhy, S.Si., M.Si
 ---
 
 ## Alur Kerja Sistem
-
----
-
-## Tutorial Setup Program
+1. Terminal 1: Jalankan npx hardhat node. Biarkan berjalan.
+2. Terminal 2: Jalankan npx hardhat run scripts/deploy.js --network localhost. Skrip ini akan men-deploy kontrak baru dan secara otomatis memperbarui file .env di proyek Rust.
+3. Terminal 3: Jalankan cargo run. Aplikasi Rust akan membaca konfigurasi terbaru dari .env dan langsung terhubung ke kontrak yang benar tanpa perlu copy-paste manual.
 
 ---
 
 ## Lampiran 
 - Laporan :
-  
----
-
-##  Saran untuk Pengembangan Selanjutnya
-
----
+- PPT :
