@@ -1,0 +1,126 @@
+use tokio_modbus::{
+    client::rtu,
+    prelude::*,
+};
+use tokio_serial::{SerialPortBuilderExt, Parity, StopBits, DataBits};
+use tokio::net::TcpStream;
+use tokio::io::AsyncWriteExt;
+use serde::Serialize;
+use chrono::Utc;
+use std::error::Error;
+use tokio::time::{sleep, Duration};
+
+// --- Konfigurasi Modbus Anda ---
+// Sesuaikan nilai-nilai ini dengan sensor dan pengaturan Modbus Anda
+const MODBUS_PORT: &str = "/dev/ttyUSB0"; // Ganti jika port serial Anda berbeda
+const MODBUS_BAUD_RATE: u32 = 9600;      // Sesuaikan baud rate sensor Anda
+const MODBUS_SLAVE_ID: u8 = 1;           // Sesuaikan Slave ID sensor Anda
+const MODBUS_REGISTER_ADDRESS: u16 = 1;  // Alamat register awal (sesuai datasheet sensor)
+const MODBUS_REGISTER_COUNT: u16 = 2;    // Jumlah register yang akan dibaca (sesuai datasheet sensor)
+const TCP_SERVER_ADDRESS: &str = "127.0.0.1:9000"; // Alamat TCP server Anda
+
+// --- Struktur Data Sensor ---
+#[derive(Serialize)]
+struct SensorData {
+    timestamp: String,
+    sensor_id: String,
+    location: String,
+    process_stage: String,
+    temperature_celsius: f32,
+    humidity_percent: f32,
+}
+
+// --- Fungsi untuk Membaca Data Sensor Melalui Modbus RTU ---
+async fn read_sensor() -> Result<Vec<u16>, Box<dyn Error>> {
+    println!("INFO: Memulai proses pembacaan sensor.");
+    println!("INFO: Mencoba membuka port serial: {} dengan baud rate {}", MODBUS_PORT, MODBUS_BAUD_RATE);
+
+    // Konfigurasi builder untuk port serial
+    let builder = tokio_serial::new(MODBUS_PORT, MODBUS_BAUD_RATE)
+        .parity(Parity::None)
+        .stop_bits(StopBits::One)
+        .data_bits(DataBits::Eight)
+        .timeout(Duration::from_secs(3)); // Timeout untuk pembukaan port
+
+    // Membuka port serial secara asinkron
+    let port = builder.open_native_async()?;
+    println!("INFO: Berhasil membuka port serial.");
+
+    // Melampirkan Modbus RTU ke port serial
+    // Perhatikan: ini hanya melampirkan, belum mengatur slave ID secara eksplisit di koneksi.
+    let mut ctx = rtu::attach(port);
+    println!("INFO: Modbus RTU client berhasil dilampirkan.");
+
+    // KOREKSI UTAMA: Atur Slave ID secara eksplisit pada konteks
+    // Ini adalah langkah yang hilang dari kode sebelumnya yang menggunakan `rtu::attach`
+    ctx.set_slave(Slave(MODBUS_SLAVE_ID)); // Atau Slave::from(MODBUS_SLAVE_ID)
+    println!("INFO: Slave ID diatur ke: {}", MODBUS_SLAVE_ID);
+
+    // Membaca input register dari sensor.
+    // Karena slave ID sudah diatur di `ctx.set_slave`, `read_input_registers` hanya butuh alamat dan jumlah.
+    println!(
+        "INFO: Mencoba membaca {} register dari alamat {}",
+        MODBUS_REGISTER_COUNT, MODBUS_REGISTER_ADDRESS
+    );
+    // KOREKSI: Fungsi read_input_registers TIDAK memerlukan slave ID sebagai argumen pertama lagi
+    // karena sudah disetel via ctx.set_slave(). Ini adalah perbedaan kunci dari versi lama/API lain.
+    let response_data = ctx.read_input_registers(MODBUS_REGISTER_ADDRESS, MODBUS_REGISTER_COUNT).await?;
+    
+    println!("INFO: Data mentah berhasil dibaca: {:?}", response_data);
+
+    // Mengembalikan data yang berhasil dibaca
+    Ok(response_data?) // Pastikan tidak ada '?' di sini
+}
+
+// --- Fungsi Utama (main) ---
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    println!("PROGRAM START: Aplikasi klien sensor Modbus RTU dimulai.");
+    println!("Akan mencoba membaca sensor setiap 2 detik dan mengirim data ke TCP server.");
+
+    loop {
+        // Panggil read_sensor tanpa argumen slave ID lagi, karena sudah ada di konstanta
+        match read_sensor().await {
+            Ok(response) => {
+                // Pastikan jumlah register yang diterima sesuai harapan
+                if response.len() == MODBUS_REGISTER_COUNT as usize {
+                    let temp = response[0] as f32 / 10.0; // Asumsi skala 10 untuk suhu
+                    let rh = response[1] as f32 / 10.0;   // Asumsi skala 10 untuk kelembaban
+
+                    println!("📡 Pembacaan Berhasil: Temp: {:.1} °C | RH: {:.1} %", temp, rh);
+
+                    let data = SensorData {
+                        timestamp: Utc::now().to_rfc3339(),
+                        sensor_id: "SHT20-Data Transaksi-001".into(),
+                        location: "Toko Barokah".into(),
+                        process_stage: "Gudang".into(),
+                        temperature_celsius: temp,
+                        humidity_percent: rh,
+                    };
+
+                    let json = serde_json::to_string(&data)?;
+                    
+                    // Mengirim data ke TCP server
+                    match TcpStream::connect(TCP_SERVER_ADDRESS).await {
+                        Ok(mut stream) => {
+                            stream.write_all(json.as_bytes()).await?;
+                            stream.write_all(b"\n").await?; // Tambahkan newline untuk memisahkan pesan
+                            println!("✅ Data JSON berhasil dikirim ke TCP server.");
+                        },
+                        Err(e) => {
+                            eprintln!("❌ ERROR: Gagal konek atau kirim data ke TCP server ({}): {}", TCP_SERVER_ADDRESS, e);
+                        }
+                    }
+                } else {
+                    println!("⚠️ Peringatan: Data tidak lengkap dari sensor. Diharapkan {} register, tapi diterima {:?}.", MODBUS_REGISTER_COUNT, response);
+                }
+            },
+            Err(e) => {
+                eprintln!("❌ ERROR: Gagal baca sensor (Modbus RTU): {}", e);
+            }
+        }
+
+        println!("INFO: Menunggu 2 detik sebelum pembacaan berikutnya...");
+        sleep(Duration::from_secs(2)).await;
+    }
+}
